@@ -1,0 +1,14 @@
+{
+  "schemas": ["urn:ietf:params:scim:schemas:oracle:idcs:IdentityPropagationTrust"],
+  "name": "RENDERED_BY_CONFIGURE",
+  "type": "JWT",
+  "subjectType": "Resource",
+  "active": true,
+  "allowImpersonation": true,
+  "issuer": "https://token.actions.githubusercontent.com",
+  "publicKeyEndpoint": "https://token.actions.githubusercontent.com/.well-known/jwks",
+  "oauthClients": [],
+  "impersonatingResource": "RENDERED_BY_CONFIGURE",
+  "claimValidations": [],
+  "claimPropagations": ["ext_repository", "ext_repository_id", "ext_workflow_ref"]
+}

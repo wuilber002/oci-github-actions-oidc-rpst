@@ -1,0 +1,34 @@
+name: OCI WIF Integration
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  validate-oci:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Obter arquivos do repositorio
+        uses: actions/checkout@v7.0.1
+
+      - name: Instalar SDK OCI
+        run: python3 -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Trocar OIDC por RPST e validar Object Storage
+        env:
+          OCI_REGION: ${{ vars.OCI_REGION }}
+          OCI_DOMAIN_URL: ${{ vars.OCI_DOMAIN_URL }}
+          OCI_CLIENT_ID: ${{ vars.OCI_CLIENT_ID }}
+          OCI_CLIENT_SECRET: ${{ secrets.OCI_CLIENT_SECRET }}
+          OCI_NAMESPACE: ${{ vars.OCI_NAMESPACE }}
+          OCI_BUCKET: ${{ vars.OCI_BUCKET }}
+          EXPECTED_REPOSITORY: ${{ vars.EXPECTED_REPOSITORY }}
+          EXPECTED_BRANCH: ${{ vars.EXPECTED_BRANCH }}
+          OIDC_AUDIENCE: ${{ vars.OIDC_AUDIENCE }}
+          OCI_RES_TYPE: ${{ vars.OCI_RES_TYPE }}
+        run: python3 scripts/validate_oci.py

@@ -1,0 +1,10 @@
+{
+  "schemas": ["urn:ietf:params:scim:schemas:oracle:idcs:App"],
+  "basedOnTemplate": {"value": "CustomWebAppTemplateId"},
+  "displayName": "RENDERED_BY_CONFIGURE",
+  "description": "GitHub Actions OIDC to OCI RPST laboratory",
+  "isOAuthClient": true,
+  "clientType": "confidential",
+  "allowedGrants": ["client_credentials"],
+  "active": false
+}
