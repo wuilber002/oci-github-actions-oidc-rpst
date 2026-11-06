@@ -6,6 +6,55 @@ O fluxo usa `client_id` e `client_secret` de um aplicativo OAuth. O segredo fica
 
 Comece **na pasta copiada do laboratório**. Na etapa de preparar o repositório, escolha entre criar um novo ou usar um existente. A partir daí, execute os comandos na raiz do repositório de destino. A pasta `.github/workflows/` precisa ficar nessa raiz para que o GitHub reconheça o workflow.
 
+## Como funciona a autenticação
+
+O fluxo abaixo acontece a cada execução, depois que o app OAuth, a trust e a policy foram configurados. Ele está dividido em três etapas e mostra o caminho de sucesso.
+
+### 1. Obter o token GitHub e gerar a chave temporária
+
+O GitHub disponibiliza os parâmetros e o segredo ao job. Com a permissão `id-token: write`, o runner solicita um JWT OIDC para a audience configurada e gera um par RSA em memória.
+
+```mermaid
+sequenceDiagram
+    participant G as GitHub Actions e OIDC
+    participant R as Runner hospedado no GitHub
+    G->>R: Client ID e parametros via Actions Variables<br/>Client Secret via Actions Secrets
+    R->>G: Solicita JWT OIDC com a audience configurada
+    G-->>R: JWT assinado com claims do repositorio e workflow
+    R->>R: Gera chave publica e privada RSA temporarias
+```
+
+### 2. Autenticar o aplicativo e trocar o JWT por RPST
+
+O JWT identifica o workload GitHub. O Client ID e o Client Secret autenticam o aplicativo autorizado a solicitar a troca. O Identity Domain verifica os dois, aplica as regras da trust e emite um RPST vinculado à chave pública.
+
+```mermaid
+sequenceDiagram
+    participant R as Runner hospedado no GitHub
+    participant D as OCI Identity Domain
+    R->>D: POST /oauth2/v1/token<br/>Basic Auth com Client ID e Client Secret<br/>JWT GitHub + chave publica + res_type + rpst_exp=20
+    D->>D: Autentica o app e confere oauthClients na trust
+    D->>D: Valida assinatura, issuer e validade do JWT<br/>Confere audience, repository, repository_id,<br/>ref e workflow_ref configurados na trust
+    D-->>R: RPST valido por 20 minutos<br/>Vinculado a chave publica e com claims propagadas
+```
+
+### 3. Assinar a chamada OCI e autorizar o acesso ao bucket
+
+O SDK usa o RPST e a chave privada temporária para assinar a chamada `ListObjects`. A autorização considera a policy do laboratório e as demais regras IAM aplicáveis. O diagrama representa essa avaliação lógica; não exige um serviço IAM separado no laboratório.
+
+```mermaid
+sequenceDiagram
+    participant R as Runner hospedado no GitHub
+    participant O as OCI Object Storage e autorizacao IAM
+    R->>O: ListObjects com RPST<br/>Requisicao assinada pela chave privada temporaria
+    O->>O: Valida RPST e assinatura da requisicao
+    O->>O: Avalia tipo do principal, dominio, bucket<br/>e claims propagadas exigidas pela policy do lab<br/>Aplica as demais regras IAM pertinentes
+    O-->>R: Se autorizado, HTTP 200 e ate 10 objetos
+    R->>R: Encerra o processo sem persistir a chave RSA
+```
+
+O JWT GitHub, o RPST e a chave RSA são temporários; o RPST expira ao fim de sua validade. **O Client Secret do app OAuth é persistente** e permanece em Actions Secrets até ser removido ou substituído. O Client ID é um identificador e fica em Actions Variables. A sessão administrativa do OCI CLI é usada somente na configuração e na limpeza locais; não participa da execução do workflow. [Documentação oficial do fluxo JWT → RPST](https://docs.oracle.com/en-us/iaas/Content/Identity/api-getstarted/token_exchange_grant_type_workload_id-federation.htm)
+
 ## Pré requisitos
 
 - Bash em Linux ou WSL; Git, OCI CLI (`oci`), GitHub CLI (`gh`), `jq`, `sed` e `sha256sum` instalados.
